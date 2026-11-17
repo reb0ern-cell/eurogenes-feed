@@ -35,15 +35,21 @@ Pages. No NewsBlur (Android ou web) subscreves esse URL e lês tudo la dentro.
 
 ## Como funciona
 
-- Le o feed de comentarios do blog (`feeds/comments/default`, max 500) para
-  saber o que e novo.
-- Agrupa por post e vai buscar so as paginas necessarias do HTML do post
-  (`?commentPage=N`) para obter o texto completo.
+- Sonda o feed de comentarios do blog com 1 item. Se o comentario mais recente
+  ja esta no `feed.xml` publicado, termina logo: **1 pedido, ~4 KB**.
+- Se ha novidades, le os 100 mais recentes, agrupa por post e vai buscar so as
+  paginas necessarias do HTML do post (`?commentPage=N`) para o texto completo.
+- Aproveita os comentarios ja no `feed.xml` (`--merge-from`), por isso uma
+  execucao com comentarios novos custa ~4 pedidos / ~360 KB.
 - Gera um Atom com `<id>` estavel (`comment-<id>`), por isso reescrever o feed
   inteiro nao duplica nada no leitor.
 - O `<updated>` do feed e a data do comentario mais recente, nao a hora do
   build: se nao ha comentarios novos, o ficheiro sai igual e o workflow nao faz
   commit.
+
+Carga no Blogger: ~48 execucoes/dia, mas quase todas de 4 KB. No pior caso
+(blog sempre a mexer) sao alguns MB por dia — o mesmo que uma pessoa a navegar
+no site durante uns minutos.
 
 ## Uso local
 
@@ -53,6 +59,7 @@ python3 blogger_comments.py URL -n 30                    # ultimos 30
 python3 blogger_comments.py URL --id 4482474905892692466 # um comentario (id do #c<id> do RSS)
 python3 blogger_comments.py URL --page 3                 # uma pagina (200)
 python3 blogger_comments.py https://eurogenes.blogspot.com --blog -n 300 --feed > feed.xml
+python3 blogger_comments.py https://eurogenes.blogspot.com --blog -n 300 --feed --merge-from feed.xml --verbose
 ```
 
 So precisa de Python 3 (biblioteca standard, sem dependencias).

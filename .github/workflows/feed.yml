@@ -20,7 +20,7 @@ jobs:
 
       - name: Gerar feed
         run: |
-          python3 blogger_comments.py https://eurogenes.blogspot.com --blog -n 300 --feed > feed.new
+          python3 blogger_comments.py https://eurogenes.blogspot.com --blog -n 300 --feed --merge-from feed.xml --verbose > feed.new
           test -s feed.new
           mv feed.new feed.xml
 
