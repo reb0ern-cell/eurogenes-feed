@@ -191,7 +191,7 @@ def blog_latest(blog, n, cache_path=None):
             )
             return cached[:n]
 
-    want = 100 if cached else n
+    want = 200 if cached else n
     data = json.loads(fetch(f"{blog}/feeds/comments/default?alt=json&max-results={min(500, want)}"))
     entries = data["feed"].get("entry", [])
 
@@ -276,7 +276,7 @@ def main():
         blog = args.url.split("?")[0].split("#")[0].rstrip("/")
         comments = blog_latest(blog, args.number, args.merge_from)
         if args.feed:
-            print(as_atom(comments, blog, f"Comentarios completos: {blog}"))
+            sys.stdout.write(as_atom(comments, blog, f"Comentarios completos: {blog}"))
         else:
             print("".join(render(c, c["post"]) for c in comments))
         print(f"-- {len(comments)} comentario(s) de {blog}", file=sys.stderr)
@@ -311,7 +311,7 @@ def main():
     if args.feed:
         title = re.search(r"<title>(.*?)</title>", first, re.S)
         title = html.unescape(title.group(1)).strip() if title else base
-        print(as_atom(comments, base, f"Comentarios: {title}"))
+        sys.stdout.write(as_atom(comments, base, f"Comentarios: {title}"))
     else:
         print("".join(render(c, base) for c in comments))
         print(f"-- {len(comments)} comentario(s); total no post: {total}; paginas: {pages}", file=sys.stderr)

@@ -5,7 +5,7 @@ caracteres. O texto completo existe no HTML do post, 200 comentarios por pagina
 (`?commentPage=N`). Este script monta um feed Atom novo, com o texto inteiro,
 dos comentarios mais recentes de todos os posts.
 
-`feed.xml` e gerado no GitHub Actions a cada 30 minutos e publicado no GitHub
+`feed.xml` e gerado no GitHub Actions 3 vezes por dia (de 8 em 8 horas (00:17, 08:17 e 16:17 UTC)) e publicado no GitHub
 Pages. No NewsBlur (Android ou web) subscreves esse URL e lês tudo la dentro.
 
 ## Publicar
@@ -47,9 +47,8 @@ Pages. No NewsBlur (Android ou web) subscreves esse URL e lês tudo la dentro.
   build: se nao ha comentarios novos, o ficheiro sai igual e o workflow nao faz
   commit.
 
-Carga no Blogger: ~48 execucoes/dia, mas quase todas de 4 KB. No pior caso
-(blog sempre a mexer) sao alguns MB por dia — o mesmo que uma pessoa a navegar
-no site durante uns minutos.
+Carga no Blogger: 3 execucoes/dia. Uma execucao sem novidades custa 1 pedido de
+~4 KB; uma com comentarios novos custa ~4 pedidos e ~300 KB.
 
 ## Uso local
 
@@ -66,8 +65,9 @@ So precisa de Python 3 (biblioteca standard, sem dependencias).
 
 ## Notas
 
-- O cron do GitHub nao e pontual: `*/30` costuma correr a cada 30-60 min, e as
-  vezes salta um. Nao ha problema, os comentarios nao se perdem.
+- O cron do GitHub nao e pontual: pode atrasar 10-20 min e, em repos recentes,
+  as vezes salta uma execucao. Com 3 por dia nao ha problema; os comentarios
+  nao se perdem, entram na execucao seguinte.
 - Workflows agendados sao desactivados ao fim de 60 dias sem actividade no
   repositorio. Como o proprio workflow faz commit quando ha comentarios novos,
   isso normalmente nao acontece; se o blog ficar parado, corre o workflow a mao.
