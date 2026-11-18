@@ -24,9 +24,11 @@ import argparse
 import gzip
 import html
 import json
+import random
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 import xml.etree.ElementTree as ET
 from datetime import datetime, timezone
@@ -46,7 +48,7 @@ TS_RE = re.compile(r"showComment=(?P<ms>\d+)#c\d+'\s*title='comment permalink'>\
 RANGE_RE = re.compile(r"(\d+)\s*&ndash;\s*(\d+)\s*of\s*(\d+)")
 
 
-def fetch(url, tries=3):
+def fetch(url, tries=5):
     last = None
     for i in range(tries):
         try:
@@ -60,10 +62,18 @@ def fetch(url, tries=3):
                 if r.headers.get("Content-Encoding") == "gzip":
                     raw = gzip.decompress(raw)
                 return raw.decode("utf-8", "replace")
-        except Exception as exc:  # 429/503/timeouts do Blogger
+        except urllib.error.HTTPError as exc:
+            last = exc
+            if exc.code in (429, 500, 502, 503, 504) and i < tries - 1:
+                wait = exc.headers.get("Retry-After")
+                wait = int(wait) if wait and wait.isdigit() else 3 * 2**i
+                time.sleep(min(wait, 60) + random.random())
+                continue
+            raise
+        except Exception as exc:  # timeouts, DNS, ligacoes cortadas
             last = exc
             if i < tries - 1:
-                time.sleep(2 * (i + 1))
+                time.sleep(3 * 2**i + random.random())
     raise last
 
 
@@ -124,22 +134,6 @@ def render(c, base):
     lines.append(c["text"])
     lines.append("")
     return "\n".join(lines)
-
-
-def from_feed_entry(e):
-    """Comentario a partir do feed (texto cortado) - fallback."""
-    link = next(l["href"] for l in e["link"] if "showComment=" in l["href"])
-    ms = int(re.search(r"showComment=(\d+)", link).group(1))
-    return {
-        "id": e["id"]["$t"].rsplit("-", 1)[-1],
-        "author": e["author"][0]["name"]["$t"],
-        "ts": ms,
-        "date": e["published"]["$t"][:16].replace("T", " "),
-        "html": e["summary"]["$t"],
-        "text": to_text(e["summary"]["$t"]),
-        "post": link.split("?")[0],
-        "truncated": True,
-    }
 
 
 def load_feed(path):
@@ -206,26 +200,34 @@ def blog_latest(blog, n, cache_path=None):
 
     groups = {}
     for e in missing:
-        link = next(l["href"] for l in e["link"] if "showComment=" in l["href"])
-        post = link.split("?")[0]
-        m = re.search(r"/feeds/(\d+)/(\d+)/comments/default", link)
+        links = [l["href"] for l in e["link"]]
+        show = next(h for h in links if "showComment=" in h)
+        post = show.split("?")[0]
+        m = next((re.search(r"/feeds/(\d+)/(\d+)/comments/default", h) for h in links if "/feeds/" in h), None)
         g = groups.setdefault(post, {"ids": m.groups() if m else None, "entries": []})
         g["entries"].append(e)
 
     found = {}
+    skipped = 0
     for post, g in groups.items():
         es = g["entries"]
-        total = post_total(*g["ids"]) if g["ids"] else (total_comments(fetch(post)) or 0)
-        pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
-        # os k comentarios mais recentes deste post estao nas ultimas paginas
-        start = max(1, (total - len(es) + PER_PAGE) // PER_PAGE)
-        for p in range(start, pages + 1):
-            for c in parse(fetch(page_url(post, p)), post):
-                found[c["id"]] = c
+        try:
+            total = post_total(*g["ids"]) if g["ids"] else (total_comments(fetch(post)) or 0)
+            pages = max(1, (total + PER_PAGE - 1) // PER_PAGE)
+            # os k comentarios mais recentes deste post estao nas ultimas paginas
+            start = max(1, (total - len(es) + PER_PAGE) // PER_PAGE)
+            for p in range(start, pages + 1):
+                for c in parse(fetch(page_url(post, p)), post):
+                    found[c["id"]] = c
+        except Exception as exc:  # 429 ou falha de rede: tentar na proxima execucao
+            skipped += 1
+            print(f"-- aviso: {post} falhou ({exc}); fica para a proxima", file=sys.stderr)
 
     ids = [e["id"]["$t"].rsplit("-", 1)[-1] for e in missing]
-    fresh = [found.get(i) or from_feed_entry(e) for i, e in zip(ids, missing)]
+    fresh = [found[i] for i in ids if i in found]
     out = sorted(cached + fresh, key=lambda c: c["ts"], reverse=True)
+    if skipped:
+        print(f"-- {skipped} post(s) adiado(s); feed mantem o que ja tinha", file=sys.stderr)
     return out[:n]
 
 
