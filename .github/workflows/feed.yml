@@ -2,7 +2,8 @@ name: feed
 
 on:
   schedule:
-    - cron: "*/30 * * * *"
+    # minutos fora da hora certa: o :00 e o :30 sao os mais sobrecarregados no GitHub
+    - cron: "7,37 * * * *"
   push:
     branches: [main]
     paths-ignore: [feed.xml, diag.log]
