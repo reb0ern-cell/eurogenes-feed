@@ -190,6 +190,11 @@ def blog_latest(blog, n, cache_path=None):
         h = head["feed"]["entry"][0]
         link = next(l["href"] for l in h["link"] if "showComment=" in l["href"])
         if int(re.search(r"showComment=(\d+)", link).group(1)) <= max(c["ts"] for c in cached):
+            print(
+                f"-- sonda: feed={link.split('showComment=')[1].split('#')[0]} "
+                f"cache={max(c['ts'] for c in cached)} -> sem novidades",
+                file=sys.stderr,
+            )
             return cached[:n]
 
     want = 100 if cached else n

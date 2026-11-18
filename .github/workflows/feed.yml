@@ -49,6 +49,16 @@ jobs:
           git -c user.name=feedbot -c user.email=feedbot@users.noreply.github.com commit -q -m "diag $(date -u +%FT%TZ)"
           git push -f origin diag
 
+      - name: Guardar log do runner
+        if: always()
+        run: |
+          mkdir -p /tmp/diag && cd /tmp/diag
+          cp "$GITHUB_WORKSPACE/gen.log" . 2>/dev/null || echo "sem gen.log" > gen.log
+          git init -q
+          git add gen.log
+          git -c user.name=feedbot -c user.email=feedbot@users.noreply.github.com commit -q -m "log $(date -u +%FT%TZ)"
+          git push -f "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:diag
+
       - name: Publicar se houve comentarios novos
         if: steps.gen.outcome == 'success'
         run: |
