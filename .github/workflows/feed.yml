@@ -18,9 +18,9 @@ concurrency:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Gerar feed
         id: gen
@@ -28,6 +28,8 @@ jobs:
         run: |
           python3 blogger_comments.py https://eurogenes.blogspot.com --blog -n 300 --feed --merge-from feed.xml --verbose > feed.new 2> gen.log
           test -s feed.new
+          grep -q '</feed>' feed.new
+          mv feed.new feed.xml
 
       - name: Diagnostico se falhar
         if: steps.gen.outcome == 'failure'
